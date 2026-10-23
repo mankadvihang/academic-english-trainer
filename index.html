@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PTE Learning App</title>
+<style>
+:root{--g:#15803d;--gl:#ecfdf3;--tx:#1f2937;--bd:#d1d5db}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,Arial,sans-serif;color:var(--tx);background:#f9fafb}
+header{background:var(--g);color:#fff;padding:12px 16px}
+header h1{margin:0;font-size:20px}
+nav{display:flex;gap:6px;overflow-x:auto;padding:8px;background:#fff;border-bottom:1px solid var(--bd);position:sticky;top:0;z-index:1}
+nav button{flex:none;border:1px solid var(--bd);background:#fff;padding:8px 12px;border-radius:20px;cursor:pointer}
+nav button.on{background:var(--g);color:#fff;border-color:var(--g)}
+main{max-width:760px;margin:0 auto;padding:16px}
+.card{background:#fff;border:1px solid var(--bd);border-radius:10px;padding:14px;margin-bottom:12px}
+.box{background:var(--gl);border-radius:8px;padding:12px;line-height:1.6;margin:8px 0}
+button.act{background:var(--g);color:#fff;border:0;padding:10px 16px;border-radius:8px;cursor:pointer;font-size:15px;margin:4px 4px 4px 0}
+button.alt{background:#fff;color:var(--g);border:1px solid var(--g);padding:9px 14px;border-radius:8px;cursor:pointer;margin:4px 4px 4px 0}
+button:disabled{opacity:.5;cursor:default}
+textarea,input,select{width:100%;padding:8px;border:1px solid var(--bd);border-radius:6px;font:inherit}
+textarea{min-height:150px}
+.big{font-size:28px;font-weight:700;font-variant-numeric:tabular-nums;min-height:36px}
+.muted{color:#6b7280;font-size:14px}
+.res{font-weight:600;margin-top:10px}
+.hw{cursor:pointer;padding:0 2px;border-radius:3px}
+.hw.sel{background:#fde68a}
+.ok{color:var(--g)} .bad{color:#b91c1c}
+label.o{display:block;margin:6px 0}
+</style>
+</head>
+<body>
+<header><h1>PTE Learning App</h1></header>
+<nav id="nav"></nav>
+<main id="main"></main>
+<script>
+/* ============ CONFIG: Google Drive audio ============
+   1. Upload each MP3 to Google Drive.
+   2. Right-click > Share > General access > Anyone with the link (Viewer).
+   3. From the share link  drive.google.com/file/d/FILE_ID/view  copy FILE_ID.
+   4. Paste it below against the matching key. Empty = text-to-speech is used.
+   Optional: a Google Cloud API key (Drive API enabled, restricted to your site)
+   makes playback more reliable than the plain download link. */
+const DRIVE_API_KEY = "";
+const AUDIO = {
+  // rs1: "PASTE_FILE_ID",
+  // rl1: "PASTE_FILE_ID",
+  // asq1_0: "PASTE_FILE_ID",
+  // dc1_0: "PASTE_FILE_ID",
+  // ml1: "PASTE_FILE_ID",
+  rs1: "1DrQeIQ7LB_3RSLka2TDOVYPIwcSQP7We",
+  rs2: "1jntnzJ6tYxqc7fY96KOgNFvvT4Xvox0v",
+  rs3: "1ixN6swkNGSPpHVdVaRxYNzfR8yzOQkDh",
+  rs4: "1zZf_1-ZvPjR8x6oTtmRgTkn6HJB3sMfM",
+  rs5: "1B57OVvy6eKF3aZBbpgl_U2mFlVqKmpnE",
+};
+/* Embedded audio: paste base64 MP3 data (data:audio/mpeg;base64,...) against a key.
+   Plays with no Google Drive needed. Keep the total file under about 16 MB. */
+const AUDIO_DATA = {
+  // rs1: "data:audio/mpeg;base64,...",
+};
+function audioUrl(key){
+  if(AUDIO_DATA[key]) return AUDIO_DATA[key];
+  const id = AUDIO[key];
+  if(!id) return "";
+  return DRIVE_API_KEY
+    ? `https://www.googleapis.com/drive/v3/files/${id}?alt=media&key=${DRIVE_API_KEY}`
+    : `https://drive.google.com/uc?export=download&id=${id}`;
+}
+
+/* ============ CONTENT ============ */
+const ITEMS = [
+{id:'ra1',sec:'speaking',type:'read_aloud',label:'Read Aloud',title:'Read Aloud 1',text:"Urban planners increasingly recognise that parks and gardens are essential to city life. Green spaces reduce air pollution, lower summer temperatures, and provide places where residents can relax and exercise. As cities grow denser, protecting these areas becomes a priority for local governments.",prep:35,speak:40},
+{id:'ra2',sec:'speaking',type:'read_aloud',label:'Read Aloud',title:'Read Aloud 2',text:"The invention of the printing press transformed the way knowledge was shared across Europe. Books became cheaper and more widely available, which encouraged literacy and fuelled scientific debate. Within a few generations, ideas could travel further and faster than ever before.",prep:35,speak:40},
+{id:'rs1',sec:'speaking',type:'repeat',label:'Repeat Sentence',title:'Repeat Sentence 1',audioText:"The library will close early on Friday because of a staff meeting.",prep:0,speak:15},
+{id:'rs2',sec:'speaking',type:'repeat',label:'Repeat Sentence',title:'Repeat Sentence 2',audioText:"Students who review their notes regularly tend to remember more information.",prep:0,speak:15},
+{id:'rs3',sec:'speaking',type:'repeat',label:'Repeat Sentence',title:'Repeat Sentence 3',audioText:"Please submit your completed assignment to the department office before noon on Monday.",prep:0,speak:15},
+{id:'di1',sec:'speaking',type:'describe',label:'Describe Image',title:'Describe Image: study methods',prompt:"Bar chart: 'Study methods used by 500 students (%)'. Textbooks 62, Practice tests 55, Online videos 48, Study groups 35, Flashcards 27. Describe the main features and the overall trend.",prep:25,speak:40},
+{id:'rl1',sec:'speaking',type:'retell',label:'Re-tell Lecture',title:'Re-tell Lecture: spaced repetition',audioText:"Today I want to talk about the benefits of spaced repetition in learning. Spaced repetition means reviewing information at increasing intervals instead of studying it all at once. Research shows that this method strengthens long-term memory because the brain has to work harder to retrieve the information each time. For example, a student learning vocabulary might review new words after one day, then three days, then a week. Compared with cramming, which produces quick but short-lived results, spaced repetition leads to knowledge that lasts. In short, studying a little often is more effective than studying a lot at once.",prep:10,speak:40},
+{id:'asq1',sec:'speaking',type:'asq',label:'Answer Short Question',title:'Answer Short Question',qs:[{q:"What do you call a person who treats sick animals?",a:["vet","veterinarian"]},{q:"How many days are there in a week?",a:["7","seven"]},{q:"What do you use to cut paper?",a:["scissors"]}]},
+{id:'rp1',sec:'speaking',type:'respond',label:'Respond to a Situation',title:'Respond to a Situation',prompt:"You are late for a group project meeting because your bus broke down. Leave a voice message for your group leader, explaining what happened and suggesting what the group should do.",prep:20,speak:40},
+
+{id:'sw1',sec:'writing',type:'swt',label:'Summarize Written Text',title:'Summarize Written Text: libraries',text:"Public libraries have changed dramatically over the past two decades. Once valued mainly for lending books, they now function as community centres offering free internet access, job-search workshops, language classes and quiet study areas. Many libraries have also introduced digital collections, allowing members to borrow e-books and audiobooks from home. Critics argued that the internet would make libraries obsolete, yet visitor numbers in several countries have remained steady or even grown. Librarians explain that the appeal lies in the human element: trained staff who help people find reliable information, and a shared space where people of all ages can meet without spending money. As a result, many local governments now view libraries as vital social infrastructure rather than optional extras."},
+{id:'es1',sec:'writing',type:'essay',label:'Write Essay',title:'Essay: class size',text:"Some people believe that students learn better in small classes, while others think class size makes no difference. Discuss both views and give your own opinion."},
+{id:'ss1',sec:'listening',type:'sst',label:'Summarize Spoken Text',title:'Summarize Spoken Text: urban farming',audioText:"Urban farming is becoming an important way of producing food in crowded cities. Instead of relying only on distant farms, city dwellers are growing vegetables on rooftops, in unused car parks and even inside old warehouses. This shortens the distance food has to travel, which reduces transport emissions and keeps produce fresher. Urban farms also create local jobs and give residents a chance to learn where their food comes from. Of course, there are challenges. Space is limited, soil can be contaminated, and start-up costs for indoor systems are high. Nevertheless, experts argue that urban farming will not replace traditional agriculture but will complement it."},
+
+{id:'rw1',sec:'reading',type:'fib',label:'Reading and Writing: Fill in the Blanks',title:'Fill in the Blanks: sleep',text:"Sleep is {1} for physical and mental health. Adults who regularly sleep fewer than six hours are more {2} to suffer from heart disease and depression. Experts recommend keeping a {3} bedtime, avoiding screens before sleep, and {4} caffeine in the afternoon. Following these simple habits can {5} improve the quality of rest.",gaps:[
+ {opts:["essentially","essential","essence","essentials"],ans:"essential"},
+ {opts:["probable","possible","likely","able"],ans:"likely"},
+ {opts:["regularity","regular","regulate","regularly"],ans:"regular"},
+ {opts:["limiting","limited","limit","limits"],ans:"limiting"},
+ {opts:["significant","significance","significantly","signify"],ans:"significantly"}]},
+{id:'rm1',sec:'reading',type:'mc',label:'Multiple Choice, Multiple Answer',title:'Multiple Choice, Multiple Answer: waggle dance',multi:true,text:"Honeybees communicate the location of food through a movement known as the waggle dance. When a worker bee finds a good source of nectar, she returns to the hive and moves in a figure-eight pattern. The angle of her movement relative to vertical indicates the direction of the food in relation to the sun, while the length of the waggle shows the distance. Other bees watch the dance and then fly directly to the source. Scientists have also found that bees adjust the dance for wind and changing sun position.",q:"Which statements about the waggle dance are supported by the passage?",opts:["It shows the direction of the food in relation to the sun.","It tells other bees which type of flower the nectar comes from.","It shows how far away the food is.","It tells other bees how many workers are needed.","It is adjusted for conditions such as wind."],ans:[0,2,4]},
+{id:'ro1',sec:'reading',type:'reorder',label:'Re-order Paragraphs',title:'Re-order Paragraphs: the bicycle',sents:["Pedals were added a few decades later, making the machines faster but still uncomfortable.","As a result, cycling quickly became popular as an affordable form of transport.","The bicycle has changed remarkably since its invention in the early nineteenth century.","By the 1880s, the introduction of equal-sized wheels and a chain drive produced the safer design we recognise today.","The first models had no pedals, and riders pushed themselves along with their feet."],order:['C','E','A','D','B']},
+{id:'rf1',sec:'reading',type:'fib',label:'Reading: Fill in the Blanks',title:'Fill in the Blanks: coastal towns',text:"Many coastal towns depend heavily on {1} for their income. During summer, thousands of visitors arrive, which {2} local shops and restaurants. However, the sudden increase in people can also put pressure on water supplies and {3} services. To {4} these problems, some councils now limit the number of cars in the town centre and encourage {5} transport.",gaps:[
+ {opts:["reduce","ancient","tourism","public","supports","carefully","waste"],ans:"tourism"},
+ {opts:["reduce","ancient","tourism","public","supports","carefully","waste"],ans:"supports"},
+ {opts:["reduce","ancient","tourism","public","supports","carefully","waste"],ans:"waste"},
+ {opts:["reduce","ancient","tourism","public","supports","carefully","waste"],ans:"reduce"},
+ {opts:["reduce","ancient","tourism","public","supports","carefully","waste"],ans:"public"}]},
+{id:'rm2',sec:'reading',type:'mc',label:'Multiple Choice, Single Answer',title:'Multiple Choice, Single Answer: solar panels',multi:false,text:"Solar panels convert sunlight into electricity, but their efficiency drops when they become hot. Engineers have therefore been testing designs that use thin layers of water or special materials to carry heat away from the panels. In trials, the cooled panels produced up to ten percent more electricity than uncooled ones. Although the cooling systems add to the initial cost, researchers believe the extra output could repay the investment within a few years.",q:"What is the main idea of the passage?",opts:["Solar panels are too expensive for hot climates.","Cooling solar panels can increase their electricity output.","Water is the best material for generating electricity.","Engineers have abandoned trials of new panel designs."],ans:[1]},
+
+{id:'lf1',sec:'listening',type:'lfib',label:'Fill in the Blanks (Listening)',title:'Fill in the Blanks: student centre',audioText:"The new student centre will open next month. It includes a quiet reading room, a cafeteria and several rooms for group study. Opening hours will be from seven in the morning until ten at night, and membership is free for all enrolled students.",text:"The new student {1} will open next {2}. It includes a quiet reading {3}, a cafeteria and several rooms for group {4}. Opening hours will be from seven in the morning until ten at {5}, and membership is free for all enrolled students.",ans:["centre|center","month","room","study","night"]},
+{id:'dc1',sec:'listening',type:'dict',label:'Write from Dictation',title:'Write from Dictation',sents:["Students must register for the exam by the end of the month.","The professor recommended three books on environmental economics.","Attendance at the workshop is compulsory for all new staff."]},
+{id:'hw1',sec:'listening',type:'hiw',label:'Highlight Incorrect Words',title:'Highlight Incorrect Words',audioText:"Scientists have discovered that regular exercise can improve memory and concentration in people of all ages. Even a short daily walk increases blood flow to the brain, which helps nerve cells work more effectively.",transcript:"Scientists have found that regular exercise can improve memory and attention in people of all ages. Even a short daily walk increases blood flow to the heart, which helps nerve cells work more efficiently.",wrong:["found","attention","heart","efficiently"]},
+{id:'ml1',sec:'listening',type:'mc',label:'Multiple Choice, Multiple Answer (Listening)',title:'Field trip instructions',multi:true,audioText:"Good morning, everyone. Before we begin the field trip to the science museum, I would like to go over a few arrangements. The coach will leave from the main gate at eight thirty, so please arrive by eight fifteen. Lunch will not be provided, so bring your own food and a water bottle. There will be a worksheet for each of you to complete during the visit, and you should hand it in to your teacher at the end of the day. Finally, remember that photography is allowed in the exhibition halls but not in the planetarium.",q:"According to the speaker, what must students do?",opts:["Arrive at the main gate by eight fifteen.","Buy lunch at the museum cafe.","Complete a worksheet during the visit.","Take photographs in the planetarium.","Bring their own food and water."],ans:[0,2,4]},
+{id:'ml2',sec:'listening',type:'mc',label:'Multiple Choice, Single Answer (Listening)',title:'Assignment submission announcement',multi:false,audioText:"Our department is introducing a new system for submitting assignments. From next semester, all work must be uploaded through the online portal rather than handed in on paper. The portal will automatically check for plagiarism and send you a receipt as proof of submission. Late submissions will still be accepted but will lose five percent for each day. Training sessions will be held in the first week of term.",q:"What is the speaker mainly announcing?",opts:["A change in how assignments are submitted.","A new penalty for plagiarism.","The cancellation of training sessions.","An extension of deadlines."],ans:[0]},
+{id:'ms1',sec:'listening',type:'mc',label:'Select Missing Word',title:'Select Missing Word: careers',multi:false,audioText:"When choosing a career, it is tempting to focus only on salary. However, job satisfaction depends on many other factors, such as the working environment, opportunities to learn, and how well the work matches your personal values. People who ignore these factors often find that a high income does not make them satisfied.",q:"The last word is replaced by a beep. Choose the best ending.",opts:["satisfied","expensive","distant","careless"],ans:[0]},
+{id:'hc1',sec:'listening',type:'mc',label:'Highlight Correct Summary',title:'Highlight Correct Summary: multitasking',multi:false,audioText:"Many people believe that multitasking makes them more productive, but research suggests otherwise. When we switch between tasks, the brain needs time to refocus, and this switching cost adds up. Studies show that people who frequently switch between emails and other work make more mistakes and take longer to finish. A better approach is to schedule blocks of uninterrupted time for one task.",q:"Choose the best summary.",opts:["Multitasking is the most effective way to complete work quickly, because the brain easily switches between tasks without losing focus.","Research shows that multitasking reduces productivity because switching tasks costs time and increases mistakes, so working on one task at a time is recommended.","Studies show that emails are the main cause of workplace errors, and employees should avoid reading them during working hours."],ans:[1]},
+{id:'ra3',sec:'speaking',type:'read_aloud',label:'Read Aloud',title:'Read Aloud 3',text:"Regular practice builds fluency. Learners who read aloud every day notice that their pronunciation becomes clearer and their pauses become more natural. Short daily sessions are more effective than occasional long ones.",prep:35,speak:40},
+{id:'rs4',sec:'speaking',type:'repeat',label:'Repeat Sentence',title:'Repeat Sentence 4',audioText:"Our team meets every Tuesday morning to review the progress of current projects.",prep:0,speak:15},
+{id:'rs5',sec:'speaking',type:'repeat',label:'Repeat Sentence',title:'Repeat Sentence 5',audioText:"The museum has extended its opening hours during the summer holidays.",prep:0,speak:15},
+{id:'di2',sec:'speaking',type:'describe',label:'Describe Image',title:'Describe Image: rainfall',prompt:"Line graph: 'Average monthly rainfall in a coastal city'. January about 80 mm, rising to a peak of about 150 mm in June, then falling to about 60 mm in December. Describe the main features and the trend.",prep:25,speak:40},
+{id:'rl2',sec:'speaking',type:'retell',label:'Re-tell Lecture',title:'Re-tell Lecture: urban heat islands',audioText:"Today's lecture is about urban heat islands. Cities are often several degrees warmer than surrounding rural areas because concrete and asphalt absorb and hold heat. The effect is strongest at night. Planners reduce it by planting trees, installing green roofs and using lighter-coloured paving. The lecturer concluded that small changes across a city can make a measurable difference.",prep:10,speak:40},
+{id:'asq2',sec:'speaking',type:'asq',label:'Answer Short Question',title:'Answer Short Question 2',qs:[{q:"What is the opposite of ancient?",a:["modern","new"]},{q:"What do you call the study of stars?",a:["astronomy"]},{q:"How many sides does a hexagon have?",a:["6","six"]}]},
+{id:'rp2',sec:'speaking',type:'respond',label:'Respond to a Situation',title:'Respond to a Situation: late for a table',prompt:"You have booked a table at a restaurant for six people, but you will arrive twenty minutes late. Leave a voice message for the restaurant explaining the situation and asking whether they can hold the table.",prep:20,speak:40},
+{id:'sw2',sec:'writing',type:'swt',label:'Summarize Written Text',title:'Summarize Written Text: remote work',text:"Remote work has changed how many professionals organise their week. Those who work from home often save time that would have been spent commuting, and many report better concentration. However, some workers find it harder to separate job tasks from personal life, and they miss the informal conversations that happen in offices. Employers are responding by offering a mix of home and office days, which allows teams to meet in person while keeping much of the flexibility that employees value."},
+{id:'es2',sec:'writing',type:'essay',label:'Write Essay',title:'Essay: public money for the arts',text:"Some people believe that governments should spend public money on the arts, while others think it should be spent on more urgent needs such as health and education. Discuss both views and give your own opinion."},
+{id:'es3',sec:'writing',type:'essay',label:'Write Essay',title:'Essay: national community service',text:"Some people think that young people should be required to do national community service. To what extent do you agree or disagree?"},
+{id:'ss2',sec:'listening',type:'sst',label:'Summarize Spoken Text',title:'Summarize Spoken Text: bike-sharing',audioText:"Many cities are introducing bike-sharing schemes to reduce car use. Users can pick up a bicycle from one station and leave it at another, paying only for the time they ride. Supporters say the schemes cut short-distance car trips, ease congestion and improve public health. Critics point out that bicycles are often left in unsafe places or damaged, and that schemes struggle to operate in areas with steep hills. The speaker concludes that success depends on good planning, including safe cycle lanes and well-positioned docking stations."},
+{id:'rw2',sec:'reading',type:'fib',label:'Reading and Writing: Fill in the Blanks',title:'Fill in the Blanks: volunteering',text:"Volunteering offers many {1} to communities. Local charities depend on volunteers to run services that would otherwise be {2}. Volunteers also gain practical skills, and employers often value this {3}. Organisations should therefore {4} clear roles so that people know what is expected. A well-planned programme can {5} both the community and the people who give their time.",gaps:[
+ {opts:["benefits","damages","disputes","penalties"],ans:"benefits"},
+ {opts:["unaffordable","unavailable","unreliable","unexpected"],ans:"unavailable"},
+ {opts:["experience","exhibition","expedition","exposure"],ans:"experience"},
+ {opts:["define","defend","deliver","deny"],ans:"define"},
+ {opts:["benefit","bench","bend","beneath"],ans:"benefit"}]},
+{id:'rm3',sec:'reading',type:'mc',label:'Multiple Choice, Multiple Answer',title:'Multiple Choice, Multiple Answer: bats',multi:true,text:"Bats are the only mammals capable of sustained flight. Many species use echolocation, sending out high-pitched sounds and reading the echoes to locate insects. Contrary to popular belief, most bats are not blind; they can see well, but they rely on sound when hunting in the dark. Bats play an important role in pollinating plants and controlling insect populations.",q:"Which statements are supported by the passage?",opts:["Bats are the only mammals that can fly.","Most bats cannot see at all.","Echolocation helps some bats find food.","Bats help control insect numbers.","All bats feed only on fruit."],ans:[0,2,3]},
+{id:'rm5',sec:'reading',type:'mc',label:'Multiple Choice, Single Answer',title:'Multiple Choice, Single Answer: pollinators',multi:false,text:"Pollinators such as bees and butterflies are declining in many areas. Researchers link this to habitat loss, pesticide use and climate change. Gardeners can help by planting flowers that bloom at different times of the year, which provides food throughout the season.",q:"What does the passage suggest gardeners can do?",opts:["Remove all flowers from their gardens.","Plant flowers that bloom at different times.","Use more pesticides to protect plants.","Move their gardens to new areas."],ans:[1]},
+{id:'ro2',sec:'reading',type:'reorder',label:'Re-order Paragraphs',title:'Re-order Paragraphs: a bakery',sents:["Within a few years, the company had opened stores in several countries.","In 1995, a small bakery in a village began selling bread door to door.","Its success led the owner to open a shop in the nearby town.","Today, the brand is known across the world for its handmade products.","Customers liked the quality, and orders soon grew beyond what one oven could handle."],order:['B','E','C','A','D']},
+{id:'ro3',sec:'reading',type:'reorder',label:'Re-order Paragraphs',title:'Re-order Paragraphs: stem cells',sents:["Scientists grow these cells in laboratory dishes to study how they divide.","Stem cells are unusual because they can develop into many different types of cell.","This ability makes them valuable for medical research.","Researchers first identified stem cells in the 1960s, in studies on animals.","Some stem cells can even be used to repair damaged tissue."],order:['D','B','C','A','E']},
+{id:'lf2',sec:'listening',type:'lfib',label:'Fill in the Blanks (Listening)',title:'Fill in the Blanks: library closure',audioText:"The city library will be closed for refurbishment from the first of July until the end of August. During this time, a temporary branch will operate in the community hall on Park Road. Books can be returned to the main entrance at any time, and members will receive an email when the library reopens.",text:"The city library will be closed for {1} from the first of July until the end of {2}. During this time, a temporary {3} will operate in the community hall on Park Road. Books can be returned to the main {4} at any time, and members will receive an {5} when the library reopens.",ans:["refurbishment|renovation","August","branch","entrance","email|e-mail"]},
+{id:'dc2',sec:'listening',type:'dict',label:'Write from Dictation',title:'Write from Dictation 2',sents:["The laboratory safety briefing is compulsory for all first-year students.","Applications must be accompanied by two references and a copy of your passport.","The committee has postponed the vote until the next scheduled meeting."]},
+{id:'hw2',sec:'listening',type:'hiw',label:'Highlight Incorrect Words',title:'Highlight Incorrect Words 2',audioText:"The local council has decided to close the old swimming pool for repairs. Residents can use the leisure centre across town while the work is carried out, and free bus services will run between the two sites.",transcript:"The local council has decided to open the old swimming pool for repairs. Residents can use the leisure centre across town while the work is carried out, and free train services will run between the two sites.",wrong:["open","train"]},
+{id:'ml3',sec:'listening',type:'mc',label:'Multiple Choice, Multiple Answer (Listening)',title:'Orientation announcements',multi:true,audioText:"Thank you for attending the orientation. Please collect your timetable from room twelve before lunch. Lectures start at nine on Monday, but the first session is a short tour of the campus library. Students who have not paid their fees must visit the finance office by Friday, and student cards can be replaced at the main reception for a small charge.",q:"Which statements are correct?",opts:["Timetables are collected from room twelve.","Lectures start at ten on Monday.","The first session is a tour of the library.","Unpaid fees must be settled at reception.","Replacement cards are free of charge."],ans:[0,2]},
+{id:'ml4',sec:'listening',type:'mc',label:'Multiple Choice, Single Answer (Listening)',title:'Travel helpdesk message',multi:false,audioText:"Hello, you have reached the travel helpdesk. Our office is currently closed for a staff training day. If you have a booking emergency, please call the airport line. Otherwise, you can leave a message after the tone, and we will return your call on Monday morning.",q:"Why is the office unavailable?",opts:["It is closed for staff training.","It has moved to a new building.","Its phone line is broken.","It is closed for a public holiday."],ans:[0]},
+{id:'ms2',sec:'listening',type:'mc',label:'Select Missing Word',title:'Select Missing Word: language learning',multi:false,audioText:"Learning a language takes time, and many learners give up before they see progress. The most successful students set small, realistic goals and practise a little every day. In the end, the students who succeed are those who keep going until they reach their goals.",q:"The last word is replaced by a beep. Choose the best ending.",opts:["goals","homes","lessons","vehicles"],ans:[0]},
+{id:'hc2',sec:'listening',type:'mc',label:'Highlight Correct Summary',title:'Highlight Correct Summary: waste',multi:false,audioText:"Recycling is important, but reducing waste in the first place is even more effective. When products are designed to last longer and packaging is minimised, less material enters the system. Recycling still matters, but it works best as a last step in a wider strategy.",q:"Choose the best summary.",opts:["Recycling is unnecessary because it rarely works, so people should simply throw everything away.","Recycling should be the only method used to deal with waste, since it solves every problem.","Preventing waste by designing longer-lasting products and reducing packaging is more effective than recycling alone."],ans:[2]},
+{id:'lis-sst-01',sec:'listening',type:'sst',label:'Summarize Spoken Text',title:'Summarize Spoken Text: city beekeeping',audioText:"Beekeeping in cities is growing quickly. Rooftop hives can provide honey and help pollinate gardens and parks. However, urban bees must find enough flowers within a short flight, and beekeepers must follow local rules on where hives can be placed. Many councils now run training courses so that new keepers understand disease control and hive safety before they start."},
+{id:'lis-sst-02',sec:'listening',type:'sst',label:'Summarize Spoken Text',title:'Summarize Spoken Text: libraries',audioText:"Libraries are changing their role in many towns. Alongside books, they now lend tools, run computer classes and offer quiet rooms for remote workers. Staff say that this variety brings in people who would never have visited before. The main challenge is funding, because services that go beyond lending need trained staff and reliable budgets from local government."},
+{id:'lis-sst-03',sec:'listening',type:'sst',label:'Summarize Spoken Text',title:'Summarize Spoken Text: sleep and light',audioText:"Sleep researchers have studied how light affects the body clock. Bright screens late at night can delay the release of melatonin, the hormone that helps us fall asleep. Experts suggest dimming lights an hour before bed and keeping phones out of the bedroom. Small changes in evening routines, they say, can noticeably improve how quickly people fall asleep and how rested they feel."},
+{id:'lis-sst-04',sec:'listening',type:'sst',label:'Summarize Spoken Text',title:'Summarize Spoken Text: coffee and climate',audioText:"Coffee farms are facing new pressures from climate change. Rising temperatures are moving suitable growing areas upward into cooler mountains, and some farmers are planting shade trees to protect their crops. Researchers are also developing hardier varieties that resist disease. The speaker argues that without these adaptations, the price of coffee could rise sharply in the coming decades."},
+{id:'lis-sst-05',sec:'listening',type:'sst',label:'Summarize Spoken Text',title:'Summarize Spoken Text: digital museums',audioText:"Museums increasingly use digital tools to attract younger visitors. Interactive screens, augmented reality and online collections allow people to explore objects in more detail than a glass case allows. Curators say these tools work best when they support the real objects rather than replace them. The speaker concludes that a balance between physical exhibits and digital experiences gives the most rewarding visits."},
+{id:'lis-mcma-01',sec:'listening',type:'mc',label:'Multiple Choice, Multiple Answer (Listening)',title:'Hiking club notice',multi:true,audioText:"Welcome to the hiking club. Meet at the car park by the lake at eight on Saturday. Wear sturdy boots, because the route includes steep, muddy sections. Lunch is not provided, so bring your own. We will return by four in the afternoon, and the club will cover the cost of the guide.",q:"Which statements are correct?",opts:["Members meet at the lake car park.","Lunch is provided by the club.","Sturdy boots are recommended.","The walk ends at noon.","The guide must be paid by members."],ans:[0,2]},
+{id:'lis-mcma-02',sec:'listening',type:'mc',label:'Multiple Choice, Multiple Answer (Listening)',title:'Library closure notice',multi:true,audioText:"Good afternoon. The library will be closed on Monday for an annual stock check. Books can still be returned through the external letterbox. Online renewals will remain available throughout the day. The reading room will reopen on Tuesday at nine.",q:"Which statements are true?",opts:["The library is closed on Monday.","Books cannot be returned on Monday.","Online renewals are not available.","The reading room opens at nine on Tuesday.","The external letterbox is closed."],ans:[0,3]},
+{id:'lis-mcma-03',sec:'listening',type:'mc',label:'Multiple Choice, Multiple Answer (Listening)',title:'Science lab safety',multi:true,audioText:"This is the safety announcement for the science lab. Goggles must be worn at all times when chemicals are in use. Long hair should be tied back. Food and drink are not permitted anywhere in the lab. If you spill a substance, tell the technician immediately and do not try to clean it yourself.",q:"According to the announcement, what must students do?",opts:["Wear goggles when chemicals are used.","Eat lunch in the lab.","Tie back long hair.","Clean up spills without help.","Bring their own chemicals."],ans:[0,2]},
+{id:'lis-mcma-04',sec:'listening',type:'mc',label:'Multiple Choice, Multiple Answer (Listening)',title:'City marathon information',multi:true,audioText:"The city marathon takes place on the second Sunday of October. Runners must collect their numbers from the expo centre the day before. The course begins at the town hall and finishes in the park. Water stations are placed every three kilometres, and medical staff will be stationed at each one.",q:"Which statements are supported by the message?",opts:["Numbers are collected on race day.","The race starts at the town hall.","Water stations are every five kilometres.","Medical staff will be at the water stations.","The race finishes at the expo centre."],ans:[1,3]},
+{id:'lis-mcma-05',sec:'listening',type:'mc',label:'Multiple Choice, Multiple Answer (Listening)',title:'Train cancellation announcement',multi:true,audioText:"Attention, passengers. The train to Leeds has been cancelled due to a signal failure. Replacement buses will leave from platform four every fifteen minutes. Passengers with a valid ticket can travel on these buses at no extra cost. Please check the screens for further updates.",q:"Which statements are correct?",opts:["The Leeds train has been cancelled.","Replacement buses leave from platform two.","Replacement buses cost extra.","Ticket holders can travel on the buses for free.","Updates will be given on the screens."],ans:[0,3,4]},
+{id:'lis-mcsa-01',sec:'listening',type:'mc',label:'Multiple Choice, Single Answer (Listening)',title:'Bicycle enquiry call',multi:false,audioText:"Hello, I am calling about the bicycle you advertised. I would like to know whether it is still for sale, and whether the brakes have been replaced. If it is available, I would be happy to come and see it on Thursday evening.",q:"Why is the caller phoning?",opts:["To enquire about a bicycle for sale","To report a stolen bicycle","To book a bicycle repair","To cancel a bicycle order"],ans:[0]},
+{id:'lis-mcsa-02',sec:'listening',type:'mc',label:'Multiple Choice, Single Answer (Listening)',title:'Email writing workshop',multi:false,audioText:"Good morning, everyone. Today's workshop will focus on writing effective emails at work. We will look at clear subject lines, short paragraphs and polite closings. Please bring a recent email that you have sent, so that we can review it together in pairs.",q:"What is the main focus of the workshop?",opts:["Writing clear workplace emails","Designing websites","Managing a budget","Learning shorthand"],ans:[0]},
+{id:'lis-mcsa-03',sec:'listening',type:'mc',label:'Multiple Choice, Single Answer (Listening)',title:'Sports centre closure',multi:false,audioText:"This is an announcement from the sports centre. The swimming pool will be closed this weekend while the water filters are replaced. Gym facilities and the tennis courts will remain open as normal. We apologise for the inconvenience and thank you for your patience.",q:"Why is the swimming pool closed?",opts:["Its filters are being replaced.","It is being painted.","There is a staff shortage.","A competition is taking place."],ans:[0]},
+{id:'lis-mcsa-04',sec:'listening',type:'mc',label:'Multiple Choice, Single Answer (Listening)',title:'Dentist appointment call',multi:false,audioText:"I am calling to confirm your appointment with the dentist on Wednesday at ten. If you need to change the time, please call us at least twenty-four hours in advance. Otherwise, we look forward to seeing you then.",q:"What is the purpose of the call?",opts:["To confirm an appointment","To cancel a treatment","To ask about payment plans","To offer a new job"],ans:[0]},
+{id:'lis-mcsa-05',sec:'listening',type:'mc',label:'Multiple Choice, Single Answer (Listening)',title:'Study abroad information session',multi:false,audioText:"Students who wish to study abroad next year must attend an information session on Friday in lecture theatre B. The session will explain the application process, the deadlines and available scholarships. Places are limited, so early registration is recommended.",q:"What is the speaker mainly describing?",opts:["An information session about studying abroad","A new library policy","A change to exam dates","A sports competition"],ans:[0]},
+{id:'lis-fib-01',sec:'listening',type:'lfib',label:'Fill in the Blanks (Listening)',title:'Community garden open day',audioText:"The community garden will hold its spring open day on the twelfth of April. Visitors can join free workshops on composting and growing herbs. Children are welcome, and light refreshments will be served in the courtyard.",text:"The community garden will hold its spring open {1} on the twelfth of {2}. Visitors can join free workshops on composting and growing {3}. Children are welcome, and light {4} will be served in the courtyard.",ans:["day","April","herbs","refreshments"]},
+{id:'lis-fib-02',sec:'listening',type:'lfib',label:'Fill in the Blanks (Listening)',title:'Hospital car park works',audioText:"The hospital car park will be resurfaced next month. During the work, visitors should use the multi-storey car park on Elm Street. Disabled parking bays will remain available near the main entrance.",text:"The hospital car park will be {1} next month. During the work, visitors should use the multi-storey car park on {2} Street. Disabled parking {3} will remain available near the main {4}.",ans:["resurfaced","Elm","bays","entrance"]},
+{id:'lis-fib-03',sec:'listening',type:'lfib',label:'Fill in the Blanks (Listening)',title:'Software update notice',audioText:"Our new software update includes improved security settings and a faster search function. Users will be asked to restart their computers once the installation is complete. Please save all your work before starting the update.",text:"Our new software update includes improved {1} settings and a faster search {2}. Users will be asked to {3} their computers once the installation is complete. Please save all your {4} before starting the update.",ans:["security","function","restart","work"]},
+{id:'lis-fib-04',sec:'listening',type:'lfib',label:'Fill in the Blanks (Listening)',title:'Rail history exhibition',audioText:"The museum's new exhibition explores the history of rail travel. It opens on the first of June and includes a restored steam engine, original posters and interactive displays for children. Tickets can be booked online.",text:"The museum's new exhibition explores the history of {1} travel. It opens on the first of {2} and includes a restored steam {3}, original posters and interactive {4} for children. Tickets can be booked {5}.",ans:["rail","June","engine","displays","online"]},
+{id:'lis-fib-05',sec:'listening',type:'lfib',label:'Fill in the Blanks (Listening)',title:'Staff car park closure',audioText:"Please note that the staff car park will be closed on Friday afternoon for a company event. Staff are asked to use the bus stop on Bridge Road. Thank you for your cooperation.",text:"Please note that the staff car park will be closed on Friday {1} for a company {2}. Staff are asked to use the bus {3} on Bridge Road. Thank you for your {4}.",ans:["afternoon","event","stop","cooperation"]},
+{id:'lis-hcs-01',sec:'listening',type:'mc',label:'Highlight Correct Summary',title:'Walking to work',multi:false,audioText:"Walking to work has clear benefits. It improves fitness, reduces traffic and costs nothing. Some people, however, live too far from their offices to walk comfortably, and bad weather can make the journey unpleasant.",q:"Choose the best summary.",opts:["Walking to work is always the best choice, because it is free and suits everyone regardless of distance or weather.","Walking to work offers fitness and cost benefits, but distance and weather can make it impractical for some people.","Walking to work is dangerous because of traffic, so people should avoid it completely."],ans:[1]},
+{id:'lis-hcs-02',sec:'listening',type:'mc',label:'Highlight Correct Summary',title:'Endangered languages',multi:false,audioText:"Many languages are disappearing as the number of their speakers falls. Communities are responding by recording elders, teaching children in schools and building digital dictionaries. Experts say that these efforts can succeed when the community itself leads them.",q:"Choose the best summary.",opts:["Languages are disappearing because computers have made them unnecessary.","Communities are protecting endangered languages through recordings, schools and dictionaries, most successfully when they lead the effort.","Digital dictionaries have completely stopped the decline of minority languages."],ans:[1]},
+{id:'lis-hcs-03',sec:'listening',type:'mc',label:'Highlight Correct Summary',title:'Electric scooters',multi:false,audioText:"Electric scooters are popular in cities, but they raise safety concerns. Riders often ignore helmet laws, and scooters left on pavements can block people with disabilities. Cities are introducing parking zones and speed limits to address these problems.",q:"Choose the best summary.",opts:["Electric scooters are safe, and cities should allow them everywhere without restriction.","Electric scooters raise safety and access concerns, which cities are addressing with parking zones and speed limits.","Cities have banned electric scooters because they are too expensive to maintain."],ans:[1]},
+{id:'lis-hcs-04',sec:'listening',type:'mc',label:'Highlight Correct Summary',title:'Saving for retirement',multi:false,audioText:"Saving for retirement is easier when people start early. Small regular contributions can grow substantially over decades because of compound interest. The speaker advises young workers to begin saving even if the amounts are small.",q:"Choose the best summary.",opts:["Retirement savings are only useful for people who earn high salaries.","Starting to save early, even with small amounts, can grow significantly because of compound interest.","Compound interest makes saving unnecessary for most workers."],ans:[1]},
+{id:'lis-hcs-05',sec:'listening',type:'mc',label:'Highlight Correct Summary',title:'Evaluating online information',multi:false,audioText:"Schools are teaching pupils to check online information before sharing it. Students learn to compare sources, look for the author's expertise and recognise emotional language designed to persuade. Teachers say these skills are as important as reading and writing.",q:"Choose the best summary.",opts:["Schools should stop teaching pupils to use the internet.","Online information is always reliable, so pupils need no special training.","Schools are teaching pupils to evaluate online sources, which teachers see as a vital skill alongside reading and writing."],ans:[2]},
+{id:'lis-msw-01',sec:'listening',type:'mc',label:'Select Missing Word',title:'Sleep and learning',multi:false,audioText:"Good sleep helps the brain store what it has learned during the day. Students who sleep well after studying usually remember more the next morning than those who stay up late. The message is clear: rest is part of learning, not a break from it.",q:"The last word is replaced by a beep. Choose the best ending.",opts:["rest","noise","distance","cost"],ans:[0]},
+{id:'lis-msw-02',sec:'listening',type:'mc',label:'Select Missing Word',title:'Crop rotation',multi:false,audioText:"Gardeners who rotate their crops each year reduce the build-up of pests in the soil. Rotation also helps keep the ground healthy, because different plants take different nutrients from it. Planning the rotation in advance makes it much easier to follow.",q:"The last word is replaced by a beep. Choose the best ending.",opts:["healthy","silver","crowded","bitter"],ans:[0]},
+{id:'lis-msw-03',sec:'listening',type:'mc',label:'Select Missing Word',title:'Rental agreements',multi:false,audioText:"Before signing a rental agreement, read every clause carefully. Pay particular attention to the deposit, the notice period and who is responsible for repairs. If anything is unclear, ask for an explanation in writing.",q:"The last word is replaced by a beep. Choose the best ending.",opts:["repairs","holidays","music","colours"],ans:[0]},
+{id:'lis-msw-04',sec:'listening',type:'mc',label:'Select Missing Word',title:'Cycling to school',multi:false,audioText:"Cycling to school is a simple way to build exercise into a daily routine. Children who cycle tend to arrive more alert and ready to learn. Parents can help by choosing safe routes and encouraging helmet use.",q:"The last word is replaced by a beep. Choose the best ending.",opts:["alert","absent","hungry","tired"],ans:[0]},
+{id:'lis-msw-05',sec:'listening',type:'mc',label:'Select Missing Word',title:'Returns and refunds',multi:false,audioText:"Customers who return goods within fourteen days are entitled to a full refund, provided the items are unused and in their original packaging. Refunds are usually processed within five working days. Keep your receipt as proof of purchase.",q:"The last word is replaced by a beep. Choose the best ending.",opts:["refund","delivery","discount","warranty"],ans:[0]},
+{id:'lis-hiw-01',sec:'listening',type:'hiw',label:'Highlight Incorrect Words',title:'New bridge',audioText:"The new bridge will open to pedestrians in the spring. Cyclists will be able to use the route from the following year.",transcript:"The new bridge will open to walkers in the spring. Cyclists will be able to use the route from the following year.",wrong:["walkers"]},
+{id:'lis-hiw-02',sec:'listening',type:'hiw',label:'Highlight Incorrect Words',title:'Regional championship',audioText:"Our team won the regional championship after a difficult season. The captain thanked the supporters for their patience.",transcript:"Our team won the national championship after a difficult season. The captain thanked the supporters for their patience.",wrong:["national"]},
+{id:'lis-hiw-03',sec:'listening',type:'hiw',label:'Highlight Incorrect Words',title:'Daily fluids',audioText:"Doctors recommend drinking water throughout the day. Most adults need about two litres of fluid daily.",transcript:"Doctors recommend drinking tea throughout the day. Most adults need about two litres of fluid daily.",wrong:["tea"]},
+{id:'lis-hiw-04',sec:'listening',type:'hiw',label:'Highlight Incorrect Words',title:'School zoo trip',audioText:"The school trip to the zoo has been postponed until next term. Parents will receive a new consent form by email.",transcript:"The school trip to the zoo has been cancelled until next term. Parents will receive a new consent form by post.",wrong:["cancelled","post"]},
+{id:'lis-hiw-05',sec:'listening',type:'hiw',label:'Highlight Incorrect Words',title:'Restaurant opening',audioText:"The restaurant opens at seven each evening. Reservations are recommended on weekends, especially for groups of more than six.",transcript:"The restaurant opens at six each evening. Reservations are recommended on weekends, especially for groups of more than eight.",wrong:["six","eight"]}
+];
+
+/* Lookup of text for each audio key (used for TTS fallback and "play once") */
+const TXT = {};
+ITEMS.forEach(i=>{
+  if(i.audioText) TXT[i.id]=i.audioText;
+  if(i.sents) i.sents.forEach((s,k)=>TXT[i.id+'_'+k]=s);
+  if(i.qs) i.qs.forEach((q,k)=>TXT[i.id+'_'+k]=q.q);
+});
+
+/* ============ STATE ============ */
+let DONE=new Set();
+let LOG=[];            // {id,sec,pct} — saved per profile on this phone
+let PROFILE=null;
+let TEST={on:false,q:[],i:0,res:[],name:'',mark:0};
+let view='home', sec='speaking', cur=null, aud=null, tmr=null;
+let rec=null, chunks=[], stream=null, recog=null, heard='';
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ============ AUDIO ============ */
+function say(text,done){
+  if(!('speechSynthesis' in window)||!text){ done&&done(); return; }
+  speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(text); u.lang='en-GB'; u.rate=0.95;
+  u.onend=()=>done&&done(); u.onerror=()=>done&&done();
+  speechSynthesis.speak(u);
+}
+function playKey(key,text,done){
+  const url=audioUrl(key);
+  if(!url) return say(text,done);
+  aud=new Audio(url);
+  aud.onended=()=>done&&done();
+  aud.onerror=()=>say(text,done);
+  aud.play().catch(()=>say(text,done));
+}
+function playOnce(btn,key){ btn.disabled=true; btn.textContent='Played'; playKey(key,TXT[key]); }
+function audioBtn(key){ return `<button class="alt" onclick="playOnce(this,'${key}')">▶ Listen (once)</button>`; }
+
+/* ============ SCORING HELPERS ============ */
+const words = t => t.trim().split(/\s+/).filter(Boolean);
+const norm = s => s.toLowerCase().replace(/[^a-z0-9' ]+/g,' ').split(/\s+/).filter(Boolean);
+function lcs(a,b){
+  const dp=Array.from({length:a.length+1},()=>Array(b.length+1).fill(0));
+  for(let i=1;i<=a.length;i++)for(let j=1;j<=b.length;j++)
+    dp[i][j]=a[i-1]===b[j-1]?dp[i-1][j-1]+1:Math.max(dp[i-1][j],dp[i][j-1]);
+  return dp[a.length][b.length];
+}
+function wordScore(target,spoken){ const t=norm(target); return {correct:lcs(t,norm(spoken)),total:t.length}; }
+const pctOf=(c,t)=>t?Math.round(100*c/t):0;
+function record(item,pct){ if(pct!==null){ LOG.push({id:item.id,sec:item.sec,pct}); } DONE.add(item.id); persist(); }
+
+function checkSWT(t){
+  const s=t.trim(), n=words(t).length, p=[];
+  if(n<5||n>75) p.push(`word count is ${n} (needs 5 to 75)`);
+  if(!/[.!?]$/.test(s)) p.push('end with one full stop');
+  if((s.slice(0,-1).match(/[.!?]/g)||[]).length) p.push('write only one sentence');
+  if(!/^[A-Z]/.test(s)) p.push('start with a capital letter');
+  return p.length?`<span class="bad">Fix: ${p.join('; ')}.</span>`
+    :'<span class="ok">Form is correct: one sentence within the word limit. Content is not scored here; compare with the model answer.</span>';
+}
+function lenCheck(t,min,max){
+  const n=words(t).length;
+  return n>=min&&n<=max?`<span class="ok">Word count OK (${n}).</span>`
+    :`<span class="bad">Word count is ${n}; aim for ${min} to ${max}.</span>`;
+}
+
+function grade(item){
+  const val=id=>{const e=$('#'+id);return e?e.value:''};
+  switch(item.type){
+  case 'swt': return {pct:null, html:checkSWT(val('ans'))};
+  case 'essay': return {pct:null, html:lenCheck(val('ans'),200,300)+' <span class="muted">Content and language are not scored here; compare with the model answer.</span>'};
+  case 'sst': return {pct:null, html:lenCheck(val('ans'),50,70)};
+  case 'fib': {
+    let ok=0;
+    const rows=item.gaps.map((g,i)=>{const s=val('g'+(i+1)); const good=s===g.ans; if(good) ok++;
+      return `Gap ${i+1}: ${good?'<span class="ok">correct</span>':`<span class="bad">${esc(s||'blank')}</span> → ${g.ans}`}`;});
+    return {pct:pctOf(ok,item.gaps.length), html:rows.join('<br>')};
+  }
+  case 'mc': {
+    const sel=[...document.querySelectorAll('input[name=opt]:checked')].map(e=>+e.value);
+    let pct;
+    if(item.multi){ const c=sel.filter(i=>item.ans.includes(i)).length, w=sel.length-c; pct=pctOf(Math.max(0,c-w),item.ans.length); }
+    else pct=sel.length&&sel[0]===item.ans[0]?100:0;
+    const rows=item.opts.map((o,i)=>{const ok=item.ans.includes(i), pk=sel.includes(i);
+      return `<div class="${ok?'ok':pk?'bad':''}">${ok?'✓':pk?'✗':'–'} ${esc(o)}</div>`;}).join('');
+    return {pct, html:rows};
+  }
+  case 'reorder': {
+    const a=val('ans').toUpperCase().replace(/[^A-E]/g,''), w=item.order;
+    let pairs=0;
+    for(let i=0;i<a.length-1;i++) if(w.indexOf(a[i+1])===w.indexOf(a[i])+1) pairs++;
+    return {pct:pctOf(pairs,w.length-1), html:`Correct order: <b>${w.join('')}</b>. Your order: ${esc(a||'none')}. Correct adjacent pairs: ${pairs} of ${w.length-1}.`};
+  }
+  case 'lfib': {
+    let ok=0;
+    const rows=item.ans.map((alts,i)=>{const s=val('b'+(i+1)).trim().toLowerCase(); const list=alts.split('|'); const good=list.includes(s); if(good) ok++;
+      return `Blank ${i+1}: ${good?'<span class="ok">correct</span>':`<span class="bad">${esc(s||'blank')}</span> → ${list[0]}`}`;});
+    return {pct:pctOf(ok,item.ans.length), html:rows.join('<br>')};
+  }
+  case 'dict': {
+    let c=0,t=0;
+    const rows=item.sents.map((s,i)=>{const r=wordScore(s,val('d'+i)); c+=r.correct; t+=r.total;
+      return `${i+1}. ${s}`;});
+    return {pct:pctOf(c,t), html:`Words correct: ${c} of ${t}.<br>${rows.join('<br>')}`};
+  }
+  case 'hiw': {
+    const wrong=new Set(item.wrong.map(w=>w.toLowerCase()));
+    let hit=new Set(), miss=0;
+    document.querySelectorAll('.hw.sel').forEach(e=>{const w=norm(e.textContent)[0]||''; if(wrong.has(w)) hit.add(w); else miss++;});
+    return {pct:pctOf(Math.max(0,hit.size-miss),wrong.size), html:`Correct highlights: ${hit.size} of ${wrong.size}. Wrong clicks: ${miss}.`};
+  }
+  case 'asq': {
+    let ok=0;
+    const rows=item.qs.map((q,i)=>{const s=val('q'+i).trim().toLowerCase(); const good=q.a.includes(s); if(good) ok++;
+      return `${i+1}. ${good?'<span class="ok">correct</span>':`<span class="bad">${esc(s||'blank')}</span> → ${q.a[0]}`}`;});
+    return {pct:pctOf(ok,item.qs.length), html:rows.join('<br>')};
+  }
+  }
+  return {pct:null, html:''};
+}
+
+/* ============ SPEAKING: timer, recording, speech check ============ */
+function countdown(n,el,done){
+  clearInterval(tmr); el.textContent=n;
+  tmr=setInterval(()=>{ n--; el.textContent=n>0?n:''; if(n<=0){ clearInterval(tmr); done&&done(); } },1000);
+}
+async function startRecording(){
+  heard=''; chunks=[];
+  try{ stream=await navigator.mediaDevices.getUserMedia({audio:true}); }
+  catch(e){ const s=$('#status'); if(s) s.textContent='Microphone blocked. Allow mic access, or practise aloud and self-check.'; return; }
+  const mr=new MediaRecorder(stream); rec=mr;
+  mr.ondataavailable=e=>chunks.push(e.data);
+  mr.onstop=()=>{ const pb=$('#pb'); if(pb){ pb.src=URL.createObjectURL(new Blob(chunks,{type:mr.mimeType||'audio/webm'})); pb.hidden=false; }
+    stream.getTracks().forEach(t=>t.stop()); };
+  mr.start();
+  if(SR){
+    recog=new SR(); recog.continuous=true; recog.interimResults=false; recog.lang='en-GB';
+    recog.onresult=e=>{ for(let i=e.resultIndex;i<e.results.length;i++) heard+=e.results[i][0].transcript+' '; };
+    try{ recog.start(); }catch(e){}
+  }
+}
+function stopRecording(){
+  if(rec&&rec.state!=='inactive') rec.stop();
+  rec=null;
+  if(recog){ try{recog.stop();}catch(e){} recog=null; }
+}
+function finishSpeak(item){
+  clearInterval(tmr); stopRecording();
+  const st=$('#stop'); if(st) st.disabled=true;
+  const s=$('#status'); if(s) s.textContent='Processing...';
+  setTimeout(()=>{
+    if(!$('#status')) return;
+    $('#status').textContent='Done. Play your recording to self-check.';
+    DONE.add(item.id);
+    if(item.type==='read_aloud'||item.type==='repeat'){
+      if(SR){
+        const r=wordScore(item.text||item.audioText, heard), pct=pctOf(r.correct,r.total);
+        $('#heard').hidden=false; $('#heard').innerHTML=`<b>Heard:</b> ${esc(heard.trim()||'(nothing)')}`;
+        $('#score').textContent=`Word accuracy: ${r.correct} of ${r.total} (${pct}%)`;
+        record(item,pct);
+      } else {
+        $('#score').textContent='Speech check needs Chrome or Edge. Compare your recording with the text.';
+      }
+    }
+    $('#go').disabled=false; $('#go').textContent='Try again';
+  },900);
+}
+function speakHTML(item){
+  return `<div class="card">
+    ${item.text?`<div class="box">${item.text}</div>`:''}
+    ${item.prompt?`<div class="box">${item.prompt}</div>`:''}
+    ${item.type==='repeat'?'<p class="muted">The sentence plays once. Repeat it as soon as it stops.</p>':''}
+    <div class="big" id="timer"></div>
+    <div class="muted" id="status">Press Start when ready.</div>
+    <button class="act" id="go">Start</button>
+    <button class="alt" id="stop" disabled>Stop</button>
+    <audio id="pb" controls hidden style="width:100%;margin-top:8px"></audio>
+    <div class="box" id="heard" hidden></div>
+    <div class="res" id="score"></div>
+  </div>`;
+}
+function wireSpeak(item){
+  $('#go').onclick=()=>{
+    $('#go').disabled=true; $('#stop').disabled=false; $('#pb').hidden=true; $('#heard').hidden=true; $('#score').textContent='';
+    const speak=()=>{ $('#status').textContent='Speak now'; startRecording(); countdown(item.speak,$('#timer'),()=>finishSpeak(item)); };
+    const begin=()=>{ if(item.prep){ $('#status').textContent='Preparation'; countdown(item.prep,$('#timer'),speak); } else speak(); };
+    if(item.audioText){ $('#status').textContent='Listen'; playKey(item.id,item.audioText,begin); }
+    else begin();
+  };
+  $('#stop').onclick=()=>{ clearInterval(tmr); finishSpeak(item); };
+}
+
+/* ============ TYPED / OBJECTIVE ITEMS ============ */
+function typedHTML(item){
+  const T=item.type; let b='';
+  if(T==='swt') b=`<div class="box">${item.text}</div><textarea id="ans" oninput="wc(this)" placeholder="Write one sentence, 5 to 75 words."></textarea><div class="muted" id="wc">0 words</div>`;
+  if(T==='essay') b=`<div class="box">${item.text}</div><textarea id="ans" oninput="wc(this)" placeholder="Write 200 to 300 words."></textarea><div class="muted" id="wc">0 words</div>`;
+  if(T==='sst') b=`${audioBtn(item.id)}<textarea id="ans" oninput="wc(this)" placeholder="Write 50 to 70 words."></textarea><div class="muted" id="wc">0 words</div>`;
+  if(T==='fib') b=`<div class="box">${item.text.replace(/\{(\d+)\}/g,(m,n)=>{const g=item.gaps[n-1];
+      return `<select id="g${n}"><option value="">--</option>${g.opts.map(o=>`<option>${esc(o)}</option>`).join('')}</select>`;})}</div>`;
+  if(T==='mc'){
+    const type=item.multi?'checkbox':'radio';
+    b=(item.text?`<div class="box">${item.text}</div>`:'')+(item.audioText?audioBtn(item.id):'')
+      +`<p class="res">${esc(item.q)}</p>`
+      +item.opts.map((o,i)=>`<label class="o"><input type="${type}" name="opt" value="${i}" style="width:auto"> ${esc(o)}</label>`).join('');
+  }
+  if(T==='reorder') b=`<p class="muted">Each sentence has a letter. Type the letters in the correct order, for example ${item.order.join('')}.</p>`
+      +item.sents.map((s,i)=>`<div class="box"><b>${String.fromCharCode(65+i)}.</b> ${s}</div>`).join('')
+      +`<input id="ans" placeholder="e.g. ${item.order.join('')}">`;
+  if(T==='lfib') b=audioBtn(item.id)+`<div class="box">${item.text.replace(/\{(\d+)\}/g,(m,n)=>`<input id="b${n}" style="width:150px;display:inline">`)}</div>`;
+  if(T==='dict') b=item.sents.map((s,i)=>`<div class="card">${audioBtn(item.id+'_'+i)}<input id="d${i}" placeholder="Type the sentence"></div>`).join('');
+  if(T==='hiw') b=audioBtn(item.id)+`<p class="muted">Tap the words that differ from what you hear.</p><div class="box">`
+      +item.transcript.split(' ').map(w=>`<span class="hw">${esc(w)}</span>`).join(' ')+`</div>`;
+  if(T==='asq') b=item.qs.map((q,i)=>`<div class="card">${audioBtn(item.id+'_'+i)}<input id="q${i}" placeholder="Type your answer"></div>`).join('');
+  return b+`<button class="act" id="sub">Check answers</button><div id="res"></div>`;
+}
+function wc(el){ $('#wc').textContent=words(el.value).length+' words'; }
+function itemHTML(item){
+  const speaking=['read_aloud','repeat','describe','retell','respond'].includes(item.type);
+  return `<div class="card"><b>${esc(item.title)}</b><div class="muted">${esc(item.label)}</div>
+    <button class="alt" onclick="go('list',sec)">← Back</button></div>`
+    + (speaking?speakHTML(item):typedHTML(item));
+}
+function wire(item){
+  if(['read_aloud','repeat','describe','retell','respond'].includes(item.type)) return wireSpeak(item);
+  if(item.type==='hiw') document.querySelectorAll('.hw').forEach(e=>e.onclick=()=>e.classList.toggle('sel'));
+  const sub=$('#sub'); if(!sub) return;
+  sub.onclick=()=>{
+    const r=grade(item);
+    $('#res').innerHTML=`<div class="box">${r.html}</div>`
+      +(r.pct!==null?`<div class="res">Practice score: ${r.pct}%</div>`:'')
+      +(item.audioText?`<div class="box"><b>Audio script:</b> ${item.audioText}</div>`:'')
+      +`<button class="alt" onclick="openItem('${item.id}')">Try again</button>`;
+    record(item,r.pct);
+    sub.disabled=true;
+  };
+}
+
+/* ============ NAVIGATION & VIEWS ============ */
+function avg(s){ const a=LOG.filter(x=>x.sec===s); return a.length?Math.round(a.reduce((t,x)=>t+x.pct,0)/a.length)+'%':'no scored attempts yet'; }
+function stopAll(){
+  try{ speechSynthesis.cancel(); }catch(e){}
+  if(aud) aud.pause();
+  clearInterval(tmr); stopRecording();
+}
+function go(v,s){ stopAll(); TEST.on=false; view=v; if(s) sec=s; cur=null; render(); }
+function openItem(id){ stopAll(); cur=ITEMS.find(i=>i.id===id); sec=cur.sec; view='item'; render(); }
+function homeHTML(){
+  const cards=['speaking','writing','reading','listening'].map(s=>{
+    const n=ITEMS.filter(i=>i.sec===s).length;
+    return `<div class="card"><b>${s[0].toUpperCase()+s.slice(1)}</b><div class="muted">${n} tasks · Average: ${avg(s)}</div>
+      <button class="act" onclick="go('list','${s}')">Open</button></div>`;
+  }).join('');
+  return `<div class="card"><b>PTE Learning App</b> <span class="muted">Signed in as ${esc(PROFILE)}</span> <button class="alt" onclick="signOut()">Sign out</button>${BIO&&!(profiles()[PROFILE]||{}).bio?' <button class="alt" onclick="enableBio()">Turn on face or fingerprint sign-in</button>':''}<p class="muted">Unofficial practice app. Not affiliated with or endorsed by Pearson. Scores are practice estimates, not official PTE scores. Progress is saved on this phone only.</p></div>${cards}`;
+}
+function listHTML(){
+  const groups={};
+  ITEMS.filter(i=>i.sec===sec).forEach(i=>{ (groups[i.label]=groups[i.label]||[]).push(i); });
+  return Object.keys(groups).map(label=>{
+    const list=groups[label];
+    const attempted=list.filter(i=>DONE.has(i.id)).length;
+    return `<details class="card"><summary><b>${esc(label)}</b> <span class="muted">${list.length} questions · ${attempted} attempted</span></summary>`
+      + list.map(i=>{
+        const last=LOG.filter(x=>x.id===i.id).pop();
+        const status=last?`last score ${last.pct}%`:(DONE.has(i.id)?'attempted':'not started');
+        return `<div style="margin:10px 0;padding-top:10px;border-top:1px solid var(--bd)"><b>${esc(i.title)}</b><div class="muted">${status}</div><button class="alt" onclick="openItem('${i.id}')">Practise</button></div>`;
+      }).join('') + '</details>';
+  }).join('');
+}
+function render(){
+  if(!PROFILE){ $('#nav').innerHTML=''; $('#main').innerHTML=loginHTML(); return; }
+  const tabs=[['home','Home'],['speaking','Speaking'],['writing','Writing'],['reading','Reading'],['listening','Listening'],['guide','Guide'],['test','Section Test'],['full','Full Test']];
+  $('#nav').innerHTML=tabs.map(([k,l])=>{
+    const special=['guide','test','full'].includes(k);
+    const on=k==='home'?view==='home':special?view===k:((view==='list'||view==='item')&&sec===k);
+    const act=k==='home'?"go('home')":special?`go('${k}')`:`go('list','${k}')`;
+    return `<button class="${on?'on':''}" onclick="${act}">${l}</button>`;
+  }).join('');
+  if(view==='home') $('#main').innerHTML=homeHTML();
+  else if(view==='list') $('#main').innerHTML=listHTML();
+  else if(view==='guide') $('#main').innerHTML=guideHTML();
+  else if(view==='test') $('#main').innerHTML=testMenuHTML('section');
+  else if(view==='full') $('#main').innerHTML=testMenuHTML('full');
+  else if(view==='result') $('#main').innerHTML=resultHTML();
+  else { $('#main').innerHTML=itemHTML(cur)+(TEST.on?testBar():''); wire(cur); }
+}
+/* ============ PROFILES (stored on this phone only) ============ */
+const PKEY='pte_profiles';
+function profiles(){ try{ return JSON.parse(localStorage.getItem(PKEY))||{}; }catch(e){ return {}; } }
+function saveProfiles(p){ try{ localStorage.setItem(PKEY,JSON.stringify(p)); }catch(e){} }
+async function hashPin(salt,pin){
+  const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(salt+':'+pin));
+  return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');
+}
+function persist(){
+  if(!PROFILE) return;
+  const p=profiles(); if(!p[PROFILE]) return;
+  p[PROFILE].data={log:LOG,done:[...DONE]}; saveProfiles(p);
+}
+function loginHTML(){
+  return `<div class="card"><b>Sign in</b><p class="muted">Progress is saved on this phone only. Use a 4-digit PIN to keep your profile private from others who use the phone.</p>
+    <input id="sn" placeholder="Name"><input id="sp" inputmode="numeric" maxlength="4" placeholder="4-digit PIN" style="margin-top:6px">
+    <label class="o"><input type="checkbox" id="rm" style="width:auto"> Remember me on this phone</label><button class="act" onclick="signIn()">Sign in</button>${BIO?' <button class="alt" onclick="bioSignIn()">Sign in with face or fingerprint</button>':''}<div id="serr" class="bad"></div>
+    <p class="muted">Forgot your PIN? Type your name above, then <a href="#" onclick="forgot();return false">delete this profile and its progress</a>.</p></div>
+  <div class="card"><b>Create a profile</b>
+    <input id="nm" placeholder="Name"><input id="pn" inputmode="numeric" maxlength="4" placeholder="4-digit PIN" style="margin-top:6px">
+    <button class="act" onclick="createProfile()">Create profile</button><div id="cerr" class="bad"></div></div>`;
+}
+async function createProfile(){
+  const n=$('#nm').value.trim(), pin=$('#pn').value;
+  if(!n){ $('#cerr').textContent='Enter a name.'; return; }
+  if(!/^\d{4}$/.test(pin)){ $('#cerr').textContent='PIN must be exactly 4 digits.'; return; }
+  const p=profiles();
+  if(p[n]){ $('#cerr').textContent='That name already exists. Sign in instead.'; return; }
+  const salt=Array.from(crypto.getRandomValues(new Uint8Array(12))).join('');
+  p[n]={salt,hash:await hashPin(salt,pin),data:{log:[],done:[]}};
+  saveProfiles(p); openProfile(n,p[n]);
+}
+async function signIn(){
+  const n=$('#sn').value.trim(), pin=$('#sp').value, r=profiles()[n];
+  if(!r){ $('#serr').textContent='No profile with that name on this phone.'; return; }
+  if(!/^\d{4}$/.test(pin)){ $('#serr').textContent='Enter your 4-digit PIN.'; return; }
+  if(await hashPin(r.salt,pin)!==r.hash){ $('#serr').textContent='Wrong PIN.'; return; }
+  openProfile(n,r);
+}
+function openProfile(n,r){
+  const rm=$('#rm'); if(rm&&rm.checked){ try{ localStorage.setItem('pte_session',n); }catch(e){} }
+  PROFILE=n; LOG=(r.data&&r.data.log)||[]; DONE=new Set((r.data&&r.data.done)||[]);
+  view='home'; cur=null; render();
+}
+function signOut(){ stopAll(); try{ localStorage.removeItem('pte_session'); }catch(e){} PROFILE=null; LOG=[]; DONE=new Set(); view='home'; render(); }
+function forgot(){
+  const n=($('#sn')||{}).value||'';
+  if(!profiles()[n.trim()]){ $('#serr').textContent='Type the profile name first.'; return; }
+  if(!confirm(`Delete profile "${n.trim()}" and all its progress on this phone? This cannot be undone.`)) return;
+  const p=profiles(); delete p[n.trim()]; saveProfiles(p); render();
+}
+/* ============ FACE / FINGERPRINT (device biometrics via WebAuthn) ============
+   The phone performs the face or fingerprint check. The app never sees biometric data.
+   The app stores only a credential ID per profile on this phone. PIN stays as backup. */
+const BIO = !!(window.PublicKeyCredential && navigator.credentials);
+function b64u(buf){ let s=''; for(const x of new Uint8Array(buf)) s+=String.fromCharCode(x); return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
+function unb64u(s){ s=s.replace(/-/g,'+').replace(/_/g,'/'); while(s.length%4) s+='='; return Uint8Array.from(atob(s),c=>c.charCodeAt(0)); }
+function rnd(n){ return crypto.getRandomValues(new Uint8Array(n)); }
+async function enableBio(){
+  try{
+    const cred=await navigator.credentials.create({publicKey:{
+      challenge:rnd(32), rp:{name:'PTE Learning App'},
+      user:{id:new TextEncoder().encode(PROFILE).slice(0,64), name:PROFILE, displayName:PROFILE},
+      pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],
+      authenticatorSelection:{authenticatorAttachment:'platform',userVerification:'required'},
+      timeout:60000}});
+    const p=profiles(); p[PROFILE].bio=b64u(cred.rawId); saveProfiles(p); render();
+  }catch(e){ alert('Face or fingerprint setup was cancelled or is not available in this browser or device. Your PIN still works.'); }
+}
+async function bioSignIn(){
+  const n=(($('#sn')||{}).value||'').trim(), r=profiles()[n];
+  if(!r||!r.bio){ $('#serr').textContent='Type your name. Face or fingerprint sign-in must be turned on first, after a PIN sign-in.'; return; }
+  try{
+    await navigator.credentials.get({publicKey:{challenge:rnd(32),allowCredentials:[{type:'public-key',id:unb64u(r.bio)}],userVerification:'required',timeout:60000}});
+    openProfile(n,r);
+  }catch(e){ $('#serr').textContent='Face or fingerprint check failed or was cancelled. Use your PIN.'; }
+}
+/* ============ GUIDE ============ */
+const GUIDE=[
+{h:'Exam format',b:'PTE Academic takes about two hours in one sitting and is scored by computer. It has three parts: Speaking and Writing, Reading, and Listening. Partial credit is common, and some multiple-answer questions take away marks for wrong choices.'},
+{h:'Read Aloud',b:'Read a text of 30 to 60 words aloud after about 35 seconds of preparation. Scored on content, fluency and pronunciation. Keep your eyes one phrase ahead of your voice, and never stop if you stumble.'},
+{h:'Repeat Sentence',b:'Listen to a sentence once and repeat it exactly. Scored on each word in the right order, fluency and pronunciation. Focus on the meaning, and start speaking as soon as the microphone opens.'},
+{h:'Describe Image',b:'Study a chart, map or picture for 25 seconds, then describe it for about 40 seconds. Introduce the topic, give two or three key features with the numbers, and finish with an overall trend. Do not invent facts.'},
+{h:'Re-tell Lecture',b:'Listen to a lecture of up to about 90 seconds, then retell the main points in about 40 seconds. Take keyword notes only, and speak in your own words: topic, main points, conclusion.'},
+{h:'Answer Short Question',b:'Hear a short question and answer with one word or a few words. Scored on vocabulary. Answer immediately, and do not add explanations.'},
+{h:'Respond to a Situation',b:'Hear or read an everyday situation and respond as you would in real life, for example by leaving a message or explaining a problem. Greet, state the main message, give a reason, and close politely.'},
+{h:'Summarize Written Text',b:'Read a passage of up to about 300 words and write one sentence of 5 to 75 words in 10 minutes. A second sentence, or a missing full stop, is a form error that costs marks.'},
+{h:'Write Essay',b:'Write an essay of 200 to 300 words in 20 minutes. Scored on content, form, grammar and vocabulary. Give a clear position, two developed points with examples, and a short conclusion.'},
+{h:'Summarize Spoken Text',b:'Listen to a lecture of 60 to 90 seconds and write a summary of 50 to 70 words in 10 minutes. Note the topic, main points and conclusion, then write connected sentences in your own words.'},
+{h:'Reading and Writing: Fill in the Blanks, and Reading: Fill in the Blanks',b:'Choose the correct word for each gap from a drop-down list or a word box. Check the part of speech, grammar and collocations. Fill every gap, because there is no penalty for a wrong answer.'},
+{h:'Multiple Choice, Multiple Answer (Reading)',b:'Choose all the correct answers. Each correct choice scores, and each wrong choice takes away a mark, so only select what the passage clearly supports. Be careful with extreme words such as always and never.'},
+{h:'Re-order Paragraphs',b:'Put jumbled sentences into the correct order. You earn points for each pair of neighbouring sentences in the right order. Find the opening sentence first, then follow pronouns and connectors such as however and this.'},
+{h:'Multiple Choice, Single Answer (Reading)',b:'Choose one correct answer. Read the question first, find the relevant part of the text, and remove the options that are clearly wrong. Watch for answers that sound right but are not stated.'},
+{h:'Multiple Choice, Multiple Answer (Listening)',b:'Listen once and choose all the correct statements. Select only what you clearly heard, because each wrong choice costs marks.'},
+{h:'Fill in the Blanks (Listening)',b:'Listen once and type the missing words. Spelling must be correct. Type each word as you hear it, and use grammar clues to predict what comes next.'},
+{h:'Highlight Correct Summary',b:'Listen once and choose the paragraph that best summarises the recording. Eliminate summaries that add details the speaker did not give, or that change the meaning.'},
+{h:'Multiple Choice, Single Answer (Listening)',b:'Listen once and choose the best answer to the question. Listen for the specific information, and beware of options that repeat words from the audio but give the wrong meaning.'},
+{h:'Select Missing Word',b:'The recording ends with a beep in place of the final word. Choose the option that completes the recording logically and grammatically. Predict the ending from the topic and tone.'},
+{h:'Highlight Incorrect Words',b:'Read the transcript while you listen and click the words that differ from what you hear. Each wrong click costs marks, so click only when you are sure.'},
+{h:'Write from Dictation',b:'Listen to a sentence once and type it exactly. Scored word by word, and spelling counts. Hold the whole sentence in mind, and type the words you remember most clearly first.'}
+];
+function guideHTML(){ return GUIDE.map(g=>`<details class="card"><summary><b>${esc(g.h)}</b></summary><p>${esc(g.b)}</p></details>`).join(''); }
+
+/* ============ SECTION TESTS AND FULL TEST ============ */
+function shuffle(a){ return a.map(x=>[Math.random(),x]).sort((p,q)=>p[0]-q[0]).map(p=>p[1]); }
+function pick(list,n){ const g={}; list.forEach(i=>{ (g[i.label]=g[i.label]||[]).push(i); }); return Object.values(g).flatMap(v=>shuffle(v).slice(0,n)); }
+function testMenuHTML(kind){
+  if(kind==='full') return `<div class="card"><b>Full Test</b><p class="muted">Up to two questions from each task type, in exam order: Speaking, Writing, Reading, then Listening. Answer each question and press Next. You cannot go back.</p><button class="act" onclick="startTest('full')">Start full test</button></div>`;
+  return `<div class="card"><b>Section Test</b><p class="muted">Up to three questions from each task type in one section. Choose a section:</p>${['speaking','writing','reading','listening'].map(s=>`<button class="alt" onclick="startTest('section','${s}')">${s[0].toUpperCase()+s.slice(1)}</button>`).join(' ')}</div>`;
+}
+function startTest(kind,s){
+  const pool = kind==='full'
+    ? ['speaking','writing','reading','listening'].flatMap(x=>pick(ITEMS.filter(i=>i.sec===x),2))
+    : pick(ITEMS.filter(i=>i.sec===s),3);
+  if(!pool.length) return;
+  TEST={on:true,q:pool,i:0,res:[],mark:LOG.length,name:kind==='full'?'Full test':'Section test: '+s[0].toUpperCase()+s.slice(1)};
+  openItem(pool[0].id);
+}
+function nextTest(){
+  const it=TEST.q[TEST.i];
+  const e=LOG.slice(TEST.mark).filter(x=>x.id===it.id).pop();
+  TEST.res.push({title:it.title,label:it.label,pct:e?e.pct:null});
+  TEST.i++;
+  if(TEST.i<TEST.q.length){ TEST.mark=LOG.length; openItem(TEST.q[TEST.i].id); }
+  else { TEST.on=false; stopAll(); view='result'; render(); }
+}
+function exitTest(){ TEST.on=false; go('home'); }
+function testBar(){
+  const last=TEST.i+1>=TEST.q.length;
+  return `<div class="card"><b>${esc(TEST.name)}</b> · question ${TEST.i+1} of ${TEST.q.length}<br><button class="act" onclick="nextTest()">${last?'Finish test':'Next question'}</button> <button class="alt" onclick="exitTest()">Exit test</button></div>`;
+}
+function resultHTML(){
+  const scored=TEST.res.filter(r=>r.pct!==null);
+  const avg=scored.length?Math.round(scored.reduce((t,r)=>t+r.pct,0)/scored.length):null;
+  return `<div class="card"><b>${esc(TEST.name)}: result</b><p class="res">${avg!==null?'Average of scored questions: '+avg+'%':'No scored questions answered'}</p><p class="muted">${scored.length} of ${TEST.res.length} questions scored. Speaking answers and dictation may show as not scored when speech checking is unavailable.</p>${TEST.res.map(r=>`<div class="box">${esc(r.title)}: ${r.pct!==null?r.pct+'%':'not scored'}</div>`).join('')}<button class="act" onclick="go('home')">Home</button></div>`;
+}
+try{ const s=localStorage.getItem('pte_session'); const r=s&&profiles()[s]; if(r) openProfile(s,r); }catch(e){}
+render();
+</script>
+</body>
+</html>
